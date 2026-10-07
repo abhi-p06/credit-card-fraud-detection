@@ -1,0 +1,811 @@
+CREDIT CARD FRAUD DETECTION USING SUPPORT VECTOR MACHINES (SVM)
+Comprehensive Master Laboratory Project Guide & Viva Compendium
+
+================================================================================
+EXECUTIVE SUMMARY & METADATA
+================================================================================
+- Project Title: Credit Card Fraud Detection using Support Vector Machine (SVM) Classification
+- Domain: Supervised Machine Learning / Financial Security
+- Academic Context: B.Tech Machine Learning Laboratory Mini Project
+- Primary Algorithm: Support Vector Classifier (sklearn.svm.SVC)
+- Kernels Evaluated: Linear Kernel (kernel='linear') & Radial Basis Function Kernel (kernel='rbf')
+- Feature Preprocessing: sklearn.preprocessing.StandardScaler (Fitted strictly on training data)
+- Active Dataset: Credit Card Fraud Detection Dataset 2023 (Kaggle: nelgiriyewithana/credit-card-fraud-detection-dataset-2023)
+- Total Transactions: 568,630 records
+- Class Balance: Inherent 50.0% Legitimate (Class 0: 284,315) vs 50.0% Fraud (Class 1: 284,315)
+- Train/Test Partition: 80% Training (454,904 rows) / 20% Testing (113,726 rows), Stratified (random_state=42)
+- Interactive UI: Streamlit Web Application (app.py, 5 dedicated pages)
+
+
+================================================================================
+SECTION 1 — PROJECT OVERVIEW
+================================================================================
+
+1.1 Project Title:
+Credit Card Fraud Detection using SVM Classification with Data Preprocessing
+
+1.2 Problem Being Solved:
+When credit card transactions occur, financial institutions must distinguish between legitimate customer purchases and unauthorized fraudulent operations. In modern automated economies, billions of card transactions occur daily. Criminals use stolen credentials, skimming devices, identity theft, and online data breaches to execute fraudulent charges. 
+
+Manual inspection of every purchase is mathematically and operationally impossible. If an institution delays transaction clearance to inspect records manually, legitimate customer checkouts freeze, disrupting commerce. Conversely, if no automated defense exists, financial losses, chargebacks, and consumer distress skyrocket.
+
+This project solves that challenge by constructing an automated, data-driven machine learning classifier that examines numerical attributes of each transaction and instantly categorizes it as either Legitimate or Fraudulent.
+
+1.3 Why Credit Card Fraud Detection is a Machine Learning Problem:
+Fraud detection is fundamentally an inductive pattern recognition problem:
+1. High Dimensionality: Transactions are described by many numerical variables simultaneously (28 principal components capturing transaction latent features, plus monetary amount). Humans cannot visualize relationships in 29-dimensional space.
+2. Subtle Non-Linear Boundaries: Fraudulent patterns often masquerade as normal activity, differing only through subtle combinations of mathematical variables that define an anomalous manifold.
+3. Speed Requirements: Decisions must be calculated within milliseconds using algebraic dot products and kernel transformations.
+4. Generalization: Rule-based systems (e.g., "if amount > $5000 flag fraud") fail because fraudsters easily circumvent static thresholds. Machine learning models generalize from historical patterns to detect novel attacks.
+
+1.4 What the Application Does:
+The application consists of two primary components:
+1. Offline Training & Evaluation Engine (train.py): Loads the raw 2023 dataset, verifies integrity, performs stratified train-test splitting, standardizes features without data leakage, trains Linear and RBF Support Vector Machines, dynamically calculates all evaluation metrics on untouched test data, and serializes trained models to disk.
+2. Interactive Demonstration Interface (app.py): A professional Streamlit web application providing a classroom demonstration interface. It allows professors and evaluators to select real test-set transactions (legitimate, fraud, or random), inspect transaction details, run real-time inference through the trained SVM models, observe the calculated decision scores, verify whether predictions match ground truth, compare model metrics, and explore dataset features.
+
+1.5 System Inputs and Outputs:
+- Input to the System: A 29-element numerical feature vector corresponding to an individual transaction:
+  x = [V1, V2, V3, ..., V28, Amount]
+- Output of the System:
+  1. Discrete Class Prediction (y_hat):
+     y_hat in {0, 1} (0 = Legitimate, 1 = Fraudulent)
+  2. Continuous Decision Score (f(x)): The signed orthogonal Euclidean distance from the transaction's feature point to the SVM separating hyperplane:
+     f(x) = w^T phi(x) + b
+  3. Verification Assessment: Correct Classification (True Positive / True Negative) vs Misclassification (False Positive / False Negative).
+
+1.6 Overall Project Workflow:
+Dataset
+  |
+  v
+Data Preprocessing
+  |
+  v
+Train-Test Split
+  |
+  v
+SVM Training
+  |
+  v
+Prediction
+  |
+  v
+Evaluation
+  |
+  v
+Streamlit Demonstration
+
+
+================================================================================
+SECTION 2 — PROBLEM DEFINITION
+================================================================================
+
+2.1 The Nature of Fraud Detection:
+Credit card fraud detection is formally defined as a supervised binary classification problem. Given a set of historical transactions with known outcomes, our goal is to estimate an unknown mapping function f: X -> Y where:
+- The input space X is a subset of R^29 representing the continuous feature space of transactions.
+- The label space Y = {0, 1} represents the discrete binary states:
+  - Class 0 (y = 0): Legitimate Transaction — Authorized purchase executed by the genuine account holder.
+  - Class 1 (y = 1): Fraudulent Transaction — Unauthorized, deceptive charge executed by an illegitimate entity.
+
+2.2 Why Manual Detection Fails:
+1. Transaction Velocity: Modern payment gateways process thousands of transactions per second. Human underwriters cannot review transactions in real time.
+2. Cognitive Limitations: Fraudsters execute coordinated distributed attacks where individual transaction amounts appear benign (e.g., $15 to $50). The fraudulent signal is only apparent in high-dimensional PCA geometric projections.
+3. Economic Cost of Latency: Delaying card authorization by even two seconds causes significant customer abandonment at point-of-sale terminals.
+
+2.3 Why Machine Learning is the Industry Standard:
+Machine learning algorithms:
+- Learn non-linear functional boundaries directly from empirical data without manual rule authoring.
+- Operate deterministically at sub-millisecond evaluation latencies once trained.
+- Enable quantitative tuning between conservative models (prioritizing high recall to catch fraud) and permissive models (prioritizing high precision to minimize customer friction).
+
+
+================================================================================
+SECTION 3 — PROJECT OBJECTIVES
+================================================================================
+
+1. Implement an End-to-End Machine Learning Pipeline: Construct a clean, fully reproducible Python pipeline that handles data loading, quality auditing, preprocessing, scaling, training, evaluation, and artifact persistence.
+2. Eliminate Data Leakage: Enforce strict experimental partitioning by fitting the StandardScaler strictly on training data and applying the learned parameters to untouched test data.
+3. Train and Benchmark Two Support Vector Machine Kernels: Implement and compare:
+   - Linear SVM: Hyperplane separation in native 29-dimensional Euclidean space.
+   - RBF SVM: Non-linear separation using the Radial Basis Function (Gaussian) kernel.
+4. Perform Rigorous, Dynamic Model Evaluation: Calculate all standard classification metrics (Accuracy, Precision, Recall, F1-Score, ROC-AUC, PR-AUC, Confusion Matrix) strictly from dynamic calls to model.predict() and model.decision_function() on unseen test data.
+5. Build an Interactive Academic Demonstration Interface: Create an intuitive Streamlit UI that allows examiners to interactively feed real test-set transactions into the trained models, examine decision scores, and observe the internal stages of the ML pipeline.
+
+
+================================================================================
+SECTION 4 — THE DATASET
+================================================================================
+
+4.1 Dataset Overview:
+- Name: Credit Card Fraud Detection Dataset 2023
+- Source: Kaggle (nelgiriyewithana/credit-card-fraud-detection-dataset-2023)
+- Total Transactions (N): 568,630
+- Total Columns: 31 (id, V1 through V28, Amount, Class)
+- Storage Location: data/creditcard_2023.csv
+- File Size on Disk: ~154 MB
+
+4.2 Column Schema:
+- id (int64): Sequential integer transaction index (0 to 568,629). Dropped during preprocessing.
+- V1 to V28 (float64): 28 continuous numerical features derived from Principal Component Analysis (PCA).
+- Amount (float64): Monetary transaction amount in currency units (Range: 0.0 to 24,039.93).
+- Class (int64): Binary ground truth label (0 = Legitimate, 1 = Fraud).
+
+4.3 Data Quality Audit:
+- Missing Values: Exactly 0 missing/null entries across all 31 columns.
+- Duplicate Records: Exactly 1 duplicate row (excluding the unique id column).
+- Class Distribution:
+  - Legitimate (Class 0): 284,315 transactions (50.00%)
+  - Fraudulent (Class 1): 284,315 transactions (50.00%)
+  - Total: 568,630 transactions (100.00%)
+
+4.4 The Anonymized PCA Features (V1 to V28):
+In financial datasets, transaction features (such as cardholder name, account number, merchant category code, terminal ID, geographic IP location, and purchase history) contain sensitive Personal Identifiable Information (PII) and proprietary banking data.
+To protect customer privacy and comply with privacy regulations, Principal Component Analysis (PCA) was applied:
+- PCA projects the high-dimensional correlated raw banking features onto orthogonal axes of maximum variance.
+- Features V1 through V28 are the resulting principal components.
+- What can be said: They are mathematically orthogonal, continuous numerical features that capture cardholder behavioral patterns and anomaly signatures.
+- What cannot be said: We cannot attribute specific real-world meanings (e.g., we cannot state that V4 is "merchant location" or V12 is "cardholder age").
+
+4.5 Absence of the Time Column:
+Older datasets (such as the 2013 ULB dataset) included an elapsed Time column. The 2023 dataset contains no Time column. The feature matrix consists strictly of V1 through V28 plus Amount (totaling 29 features).
+
+
+================================================================================
+SECTION 5 — WHY THIS DATASET WAS CHOSEN & LIMITATIONS
+================================================================================
+
+5.1 Why This Dataset is Suitable for an ML Laboratory:
+1. Inherent Class Balance: Unlike raw production datasets where fraud occurs at a rate of 0.17% (which can complicate standard classification for introductory lab demonstrations), this benchmark dataset is balanced (50% Class 0 and 50% Class 1).
+2. Methodological Simplicity: Because the dataset is balanced, students do not need heuristic undersampling, SMOTE oversampling, or synthetic minority generation. The full mathematical rigor of Support Vector Machines and StandardScaler can be studied cleanly.
+3. Standard Feature Scale: Features V1 through V28 have well-behaved variance distributions, making them ideal for demonstrating distance-based algorithms like SVM.
+4. Large Sample Size (N = 568,630): Provides a realistic test of SVM computational scalability and demonstrates why kernel choice and optimization parameters matter.
+
+5.2 Dataset Limitations:
+1. Synthetic Balancing Artifacts: To achieve a 50/50 balance across 568,630 records, the publishers synthetically balanced the distribution. Consequently, real-world base-rate fraud probabilities (~0.1% to 0.2%) are not directly mirrored here.
+2. Lack of Temporal Attributes: Without transaction timestamps, temporal feature engineering (such as velocity checks, e.g., "number of transactions in the last 10 minutes") cannot be performed.
+3. Anonymized Feature Interpretability: Because V1 to V28 are PCA components, we cannot provide business-level feature explanations.
+
+
+================================================================================
+SECTION 6 — DATA PREPROCESSING
+================================================================================
+
+6.1 Step 1: Loading the Data
+- What it does: Reads the raw CSV file into a pandas DataFrame.
+- Why we do it: Enables structured tabular operations and schema inspection.
+- Code: df = pd.read_csv("data/creditcard_2023.csv")
+
+6.2 Step 2: Removing the Identifier Column (id)
+- What it does: Drops the id column from the DataFrame.
+- Why we do it: id is an arbitrary sequential integer assigned to each row (0, 1, 2, ...). It carries zero semantic relationship to whether a transaction is fraudulent.
+- Code: df_clean = df.drop(columns=["id"])
+
+6.3 Step 3: Feature and Target Separation
+- What it does: Separates the 29 input predictors into feature matrix X and the ground truth into target vector y.
+- Code:
+  X = df_clean.drop(columns=["Class"])  # Shape: (568630, 29)
+  y = df_clean["Class"]                 # Shape: (568630,)
+
+6.4 Step 4: Stratified Train-Test Split (80/20)
+- What it does: Divides the data into 80% training data (454,904 samples) and 20% test data (113,726 samples).
+- Why we do it: Machine learning models must be validated on data they have never encountered during parameter estimation to verify generalizability and prevent overfitting.
+- Why stratify=y: Stratification guarantees that the 50/50 ratio of legitimate to fraudulent transactions is preserved in both partitions:
+  - Training Set: 227,452 Legit (50.0%) / 227,452 Fraud (50.0%)
+  - Test Set: 56,863 Legit (50.0%) / 56,863 Fraud (50.0%)
+- Why random_state=42: Seeds the pseudo-random number generator for reproducible splits.
+- Code:
+  X_train, X_test, y_train, y_test = train_test_split(
+      X, y, test_size=0.2, random_state=42, stratify=y
+  )
+
+6.5 Step 5: Feature Standardization with StandardScaler
+- What it does: Normalizes every numerical feature so that it has a mean of zero (mu = 0) and unit variance (sigma = 1):
+  z = (x - mu) / sigma
+- Why we do it for SVM: Support Vector Machines find an optimal separating hyperplane by computing Euclidean distances (||w||) and inner products (x_i^T x_j). The feature Amount ranges from 0 to 24,039.93, whereas PCA features V1 to V28 have much smaller ranges. If left unscaled, Amount would dominate the distance metric.
+- Why fit ONLY on training data: To prevent data leakage. The parameters mu (mean) and sigma (standard deviation) must be calculated exclusively from the training partition.
+- Code:
+  scaler = StandardScaler()
+  X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train), columns=X_train.columns, index=X_train.index)
+  X_test_scaled = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns, index=X_test.index)
+
+6.6 No Resampling Required:
+Because the 2023 dataset is inherently class-balanced, no undersampling, SMOTE oversampling, or artificial class weighting (class_weight='balanced') is used.
+
+
+================================================================================
+SECTION 7 — MACHINE LEARNING ALGORITHM: SUPPORT VECTOR MACHINES (SVM)
+================================================================================
+
+7.1 Absolute Basics: Supervised Learning & Classification
+- Supervised Learning: A branch of machine learning where an algorithm is trained on labeled input-output pairs (x_i, y_i), learning a mapping from input features to known target outputs.
+- Classification: A supervised learning task where the target output variable is categorical rather than continuous. In our project, it is binary classification (y in {0, 1}).
+
+7.2 What is a Support Vector Machine?
+A Support Vector Machine (SVM) is a maximum-margin classifier. Given a set of points from two classes in an n-dimensional space, SVM finds a decision boundary that separates the classes while maximizing the distance between the boundary and the closest data points from either class.
+
+7.3 Core Geometric Concepts:
+1. Hyperplane: An (n-1)-dimensional flat affine subspace dividing an n-dimensional space into two halves. In our 29-dimensional space, the hyperplane is defined algebraically as:
+   w^T x + b = 0
+   where w in R^29 is the normal weight vector and b in R is the bias offset.
+2. Margin: The geometric distance between the decision boundary and the closest training points on either side:
+   Margin = 2 / ||w||
+   SVM minimizes ||w||^2, which maximizes the margin 2 / ||w||. Maximizing the margin provides theoretical guarantees against overfitting.
+3. Support Vectors: The critical training instances that lie exactly on the margin boundaries (w^T x_i + b = +/- 1). If any non-support-vector point is moved or removed, the hyperplane remains identical.
+4. Kernel Function (K(x, x')): A mathematical function that computes the inner product of two vectors in a transformed feature space without explicitly calculating the transformation coordinates:
+   K(x, x') = <phi(x), phi(x')> (The Kernel Trick).
+
+7.4 The Linear SVM Kernel:
+- Mathematical Form: K(x, x') = x^T x'
+- How it works: Constructs a straight, planar decision boundary directly in the original 29-dimensional feature space.
+- When it is useful: Computationally straightforward, produces an interpretable weight vector w, and works well when features have high dimensionality and classes are linearly separable.
+
+7.5 The RBF (Radial Basis Function / Gaussian) Kernel:
+- Mathematical Form: K(x, x') = exp(-gamma * ||x - x'||^2)
+- How it works: Implicitly maps input vectors into an infinite-dimensional Hilbert space where complex, non-linear boundaries in 29 dimensions become linearly separable.
+- Parameters Used in Project:
+  1. C = 1.0 (Regularization Parameter): Controls the trade-off between maximizing the margin and minimizing training classification errors. A moderate C=1.0 provides balanced regularization without overfitting.
+  2. gamma = 'scale' (Kernel Coefficient): Defines the influence radius of individual support vectors:
+     gamma = 1 / (n_features * Var(X)) = 1 / (29 * 1.0) approx 0.0345.
+
+
+================================================================================
+SECTION 8 — MODEL IMPLEMENTATION
+================================================================================
+
+8.1 Actual Model Definitions in Code:
+```python
+from sklearn.svm import SVC
+
+# 1. Linear SVM
+linear_model = SVC(kernel="linear", cache_size=1000)
+
+# 2. RBF SVM
+rbf_model = SVC(kernel="rbf", C=1.0, gamma="scale", cache_size=1000)
+```
+
+8.2 Parameter Explanation:
+- kernel="linear": Specifies the linear dot-product kernel.
+- kernel="rbf": Specifies the Radial Basis Function Gaussian kernel.
+- C=1.0: Standard soft-margin penalty.
+- gamma="scale": Uses 1 / (n_features * X.var()) for the RBF Gaussian spread.
+- cache_size=1000: Allocates 1,000 MB (1 GB) of RAM to cache kernel evaluations in the underlying LIBSVM C++ solver, speeding up convergence.
+
+8.3 Core Methods Explained:
+1. model.fit(X_train, y_train):
+   Solves the convex quadratic programming dual optimization problem to estimate support vectors, dual weights alpha_i, and bias b.
+2. model.predict(X_test):
+   Generates discrete class labels (0 or 1) by evaluating the sign of the decision function. Returns 1 if score >= 0, and 0 if score < 0.
+3. model.decision_function(X_test):
+   Returns the raw, unthresholded continuous distance score: f(x) = sum(alpha_i * y_i * K(x_i, x)) + b. This is a geometric distance score, NOT a probability.
+
+
+================================================================================
+SECTION 9 — TRAINING PROCESS
+================================================================================
+
+Execution Flow in train.py:
+Step 1: Raw CSV loaded (568,630 rows x 31 columns)
+Step 2: Quality audit completed (0 missing, 1 duplicate, 50/50 balance)
+Step 3: 'id' dropped. Features (29 cols) and target separated.
+Step 4: Stratified 80/20 split executed (454,904 train / 113,726 test).
+Step 5: StandardScaler fitted strictly on X_train. Both partitions transformed.
+Step 6: Linear SVM trained on 454,904 samples in 1224.2 seconds (~20.4 min).
+Step 7: RBF SVM trained on 454,904 samples in 176.6 seconds (~2.94 min).
+Step 8: Models evaluated dynamically on 113,726 test samples.
+Step 9: Artifacts saved to models/ directory.
+
+
+================================================================================
+SECTION 10 — PREDICTION PROCESS IN STREAMLIT
+================================================================================
+
+When a user selects a transaction and clicks "[ ⚡ Analyze Transaction ]":
+1. Retrieve Transaction: Selected index extracted from session state. Row extracted from test set: row_df = X_test.iloc[[curr_idx]].
+2. Recover Original Values: Unscaled Amount recovered for display: orig_row = scaler.inverse_transform(row_df)[0].
+3. Pass Scaled Features to Model: Features passed to selected model (linear_model or rbf_model).
+4. Calculate Decision Function: raw_score = float(model.decision_function(row_df)[0]).
+5. Generate Prediction Label: pred_label = int(model.predict(row_df)[0]) (0 or 1).
+6. Compare with Ground Truth: actual_label = int(y_test.iloc[curr_idx]), is_correct = (pred_label == actual_label).
+7. Render Interface: Transaction Details Card, 6-Stage Visual Pipeline, Prominent Result Card (✓ LEGITIMATE or ⚠ FRAUD), Decision Score Badge, and verification assessment.
+
+
+================================================================================
+SECTION 11 — STREAMLIT APPLICATION ARCHITECTURE
+================================================================================
+
+Pages in app.py:
+1. 🏠 Home:
+   Academic landing page. Displays hero panel, "[ 🔍 Analyze a Transaction ]" CTA button, 4 dynamic summary metric cards (Total, Fraud, Rate, Models), 5-step ML workflow diagram, and "How the Model Works" / "Models Used" cards.
+2. 🔍 Fraud Detection (Main Demonstration Page):
+   Primary evaluation interface. Features model selector radio button, 3 demo buttons (Random Legit, Random Fraud, Random Transaction), transaction details card, 6-stage visual ML pipeline, prominent result card (✓ LEGITIMATE or ⚠ FRAUD), decision score indicator, and technical feature inspector.
+3. ⚖️ Model Comparison:
+   Side-by-side performance evaluation. Displays 2 large model cards with all 6 evaluation metrics and training durations, confusion matrix heatmaps, ROC curve, Precision-Recall curve, and dynamic observation notes.
+4. 📊 Data Analysis:
+   Exploratory data analysis page. Shows 4 dataset summary cards, Legitimate vs Fraud count bar chart, Amount distribution histogram, and interactive PCA Feature Explorer dropdown.
+5. 📖 Methodology:
+   Academic documentation page. Explains Problem Formulation, Dataset & Scaling, Balanced Dataset & Split, and Support Vector Machines.
+
+
+================================================================================
+SECTION 12 — FRAUD DETECTION DEMONSTRATION WORKFLOW
+================================================================================
+
+12.1 Demonstration Buttons:
+1. [ 🟢 Random Legitimate Transaction ]: Queries y_test for indices where y_test == 0, selecting a real genuine transaction.
+2. [ 🔴 Random Fraud Transaction ]: Queries y_test for indices where y_test == 1, selecting an authentic fraud transaction.
+3. [ 🎲 Random Transaction ]: Selects a uniformly random integer between 0 and len(X_test) - 1.
+
+12.2 Actual Label vs Model Prediction:
+- Actual Label (Ground Truth y): The recorded outcome from the test dataset. Known because this is a historical benchmark.
+- Model Prediction (y_hat): The output generated by the SVM when fed the standardized 29-feature vector. The model has no access to the ground truth column.
+- Verification Assessment:
+  - True Positive: Actual Fraud (1), Predicted Fraud (1) -> Correctly Intercepted.
+  - True Negative: Actual Legit (0), Predicted Legit (0) -> Correctly Cleared.
+  - False Positive: Actual Legit (0), Predicted Fraud (1) -> False Alarm.
+  - False Negative: Actual Fraud (1), Predicted Legit (0) -> Missed Fraud.
+
+
+================================================================================
+SECTION 13 — MODEL EVALUATION METRICS
+================================================================================
+
+13.1 Confusion Matrix Terminology:
+- True Positive (TP): Fraud transactions correctly predicted as fraud.
+- True Negative (TN): Legitimate transactions correctly predicted as legitimate.
+- False Positive (FP): Legitimate transactions incorrectly flagged as fraud (Type I error / False Alarm).
+- False Negative (FN): Fraud transactions incorrectly predicted as legitimate (Type II error / Missed Fraud).
+
+13.2 Accuracy:
+- Definition: Proportion of total predictions that were correct.
+- Formula: Accuracy = (TP + TN) / (TP + TN + FP + FN)
+
+13.3 Precision:
+- Definition: Proportion of flagged transactions that were truly fraudulent.
+- Formula: Precision = TP / (TP + FP)
+- Banking Significance: Measures false alarms. High precision minimizes unnecessary customer account freezes.
+
+13.4 Recall (Sensitivity):
+- Definition: Proportion of actual fraud transactions that the model successfully caught.
+- Formula: Recall = TP / (TP + FN)
+- Banking Significance: Most critical metric in financial security. A missed fraud (FN) results in direct monetary theft.
+
+13.5 F1-Score:
+- Definition: Harmonic mean of Precision and Recall.
+- Formula: F1 = 2 * (Precision * Recall) / (Precision + Recall)
+
+13.6 ROC-AUC:
+- Definition: Area Under Receiver Operating Characteristic curve. Measures ranking ability across all thresholds.
+- Formula: Plots TPR (TP / (TP + FN)) vs FPR (FP / (FP + TN)).
+
+13.7 PR-AUC:
+- Definition: Precision-Recall Area Under Curve (Average Precision). Evaluates trade-off between Precision and Recall across thresholds.
+
+
+================================================================================
+SECTION 14 — CONFUSION MATRIX ANALYSIS
+================================================================================
+
+Evaluated dynamically on 113,726 untouched test transactions (56,863 Legitimate, 56,863 Fraud):
+
+Linear SVM Confusion Matrix:
+                      Predicted Legit      Predicted Fraud
+Actual Legit (0)       55,768 (TN)          1,095 (FP)
+Actual Fraud (1)        2,775 (FN)         54,088 (TP)
+
+RBF SVM Confusion Matrix:
+                      Predicted Legit      Predicted Fraud
+Actual Legit (0)       56,653 (TN)            210 (FP)
+Actual Fraud (1)          122 (FN)         56,741 (TP)
+
+Key Comparisons:
+- Missed Fraud: Linear SVM missed 2,775 frauds. RBF SVM missed only 122 frauds (caught 99.79% of all frauds).
+- False Alarms: Linear SVM produced 1,095 false alarms. RBF SVM produced only 210 false alarms (over 80% reduction).
+
+
+================================================================================
+SECTION 15 — MODEL COMPARISON
+================================================================================
+
+Official Benchmark Results Table (Test Set: N=113,726):
+
+Metric              | Linear SVM           | RBF SVM              | Superior Model
+--------------------+----------------------+----------------------+----------------
+Accuracy            | 96.60% (0.96597)     | 99.71% (0.99708)     | RBF SVM (+3.11%)
+Precision           | 98.02% (0.98016)     | 99.63% (0.99631)     | RBF SVM (+1.61%)
+Recall              | 95.12% (0.95120)     | 99.79% (0.99785)     | RBF SVM (+4.67%)
+F1-Score            | 0.9655 (0.96546)     | 0.9971 (0.99708)     | RBF SVM (+0.0316)
+ROC-AUC             | 0.9931 (0.99309)     | 0.9998 (0.99979)     | RBF SVM (+0.0067)
+PR-AUC              | 0.9942 (0.99425)     | 0.9997 (0.99971)     | RBF SVM (+0.0055)
+Training Time       | 1224.2 s (~20.4 min) | 176.6 s (~2.94 min)  | RBF SVM (6.9x faster)
+
+Discussion:
+- Why RBF SVM is Superior: Transaction distribution in 29-dimensional space is non-linear. The RBF kernel captures non-linear interactions that a flat linear hyperplane cannot separate.
+- Why RBF Trained Faster: In LIBSVM, the Gaussian transformation cleanly separates the balanced clusters, requiring fewer active-set iterations in Sequential Minimal Optimization (SMO). Linear SVM struggled to find a planar separator, taking more iterations.
+
+
+================================================================================
+SECTION 16 — WHY ACCURACY CAN BE MISLEADING (AND THE ROLE OF CLASS BALANCE)
+================================================================================
+
+16.1 The Accuracy Paradox in Imbalanced Datasets:
+In datasets with severe class imbalance (such as 0.17% fraud in the 2013 ULB dataset), a dummy model predicting all transactions as legitimate achieves 99.83% accuracy while catching zero frauds. This is the Accuracy Paradox.
+
+16.2 In Our 2023 Balanced Dataset:
+In our active 2023 dataset, exactly 50% of transactions are legitimate and 50% are fraud. A dummy model achieves only 50.00% accuracy. Therefore, Accuracy (96.60% for Linear SVM, 99.71% for RBF SVM) is a valid, informative metric. However, banks still inspect Recall and Precision separately to balance false alarms against unintercepted fraud losses.
+
+
+================================================================================
+SECTION 17 — ACTUAL PROJECT RESULTS SUMMARY
+================================================================================
+
+Linear SVM:
+- Accuracy:  96.60%
+- Precision: 98.02%
+- Recall:    95.12%
+- F1-Score:  0.9655
+- ROC-AUC:   0.9931
+- PR-AUC:    0.9942
+- Train Duration: 1,224.2 seconds
+- Confusion Matrix: TN=55,768, FP=1,095, FN=2,775, TP=54,088
+
+RBF SVM:
+- Accuracy:  99.71%
+- Precision: 99.63%
+- Recall:    99.79%
+- F1-Score:  0.9971
+- ROC-AUC:   0.9998
+- PR-AUC:    0.9997
+- Train Duration: 176.6 seconds
+- Confusion Matrix: TN=56,653, FP=210, FN=122, TP=56,741
+
+
+================================================================================
+SECTION 18 — COMPLETE CODEBASE EXPLANATION
+================================================================================
+
+18.1 train.py:
+Contains the offline training pipeline:
+- load_data(): loads data/creditcard_2023.csv.
+- explore_data(): audits shapes, missing values, duplicates, class distribution.
+- preprocess(): drops 'id', splits X and y, executes stratified 80/20 train/test split, standardizes features with StandardScaler fitted strictly on train.
+- train_svm(): trains Linear SVM and RBF SVM models.
+- evaluate_model(): generates predictions and decision scores, computes all metrics and curves.
+- save_models(): saves artifacts to models/ directory.
+
+18.2 app.py:
+Streamlit web application:
+- Custom styling for clean academic cards and banners.
+- Cached data loaders (@st.cache_data for dataset and results, @st.cache_resource for models).
+- 5 pages: 🏠 Home, 🔍 Fraud Detection, ⚖️ Model Comparison, 📊 Data Analysis, 📖 Methodology.
+- Real-time inference engine for transaction testing.
+
+18.3 requirements.txt:
+Dependencies: streamlit, pandas, numpy, scikit-learn, imbalanced-learn, matplotlib, seaborn, plotly, joblib.
+
+
+================================================================================
+SECTION 19 — IMPORTANT PYTHON & SCIKIT-LEARN CONCEPTS
+================================================================================
+
+- pandas.DataFrame: 2D labeled tabular data structure used for dataset manipulation.
+- train_test_split: Partitions data into training and testing partitions.
+- stratify=y: Preserves class proportions in train and test splits.
+- StandardScaler: Standardizes features to mean=0 and unit variance (z = (x - mu) / sigma).
+- SVC: Support Vector Classifier from sklearn.svm based on LIBSVM.
+- fit(): Fits model parameters (support vectors, weights, biases) on training data.
+- predict(): Outputs discrete binary class predictions (0 or 1).
+- decision_function(): Outputs raw continuous signed distance to the hyperplane.
+- confusion_matrix(): Computes TN, FP, FN, TP outcomes.
+- joblib: Efficient serialization library for persisting trained models and arrays.
+- streamlit: Framework for interactive Python data science web applications.
+
+
+================================================================================
+SECTION 20 — 50 COMMON VIVA QUESTIONS & ANSWERS
+================================================================================
+
+1. What is Machine Learning?
+   A branch of AI where systems learn patterns from empirical data without being explicitly programmed with static rules.
+2. What is supervised learning?
+   Training an algorithm on labeled data pairs (x, y) to learn a functional mapping from inputs to target outputs.
+3. What is classification?
+   A supervised learning task where the target output variable is categorical.
+4. What is binary classification?
+   Classification with exactly two discrete classes (0 and 1).
+5. Difference between classification and regression?
+   Classification predicts categorical labels; regression predicts continuous numbers.
+6. Why is fraud detection framed as classification?
+   Because the operational decision is binary: approve (legitimate) or block/flag (fraud).
+7. What dataset was used?
+   Credit Card Fraud Detection Dataset 2023 from Kaggle.
+8. How many transactions are in the dataset?
+   568,630 transactions.
+9. How many features are used?
+   29 numerical features (V1 to V28, and Amount).
+10. What happened to the id column?
+    Dropped during preprocessing because it is an arbitrary row index with no predictive value.
+11. What does Class 0 represent?
+    A legitimate credit card transaction.
+12. What does Class 1 represent?
+    A fraudulent credit card transaction.
+13. Is the dataset balanced or imbalanced?
+    Balanced: exactly 50% Legitimate (284,315) and 50% Fraud (284,315).
+14. What are V1 to V28?
+    Principal Component Analysis (PCA) numerical components protecting cardholder privacy.
+15. Can we know the exact real-world meaning of V1 or V14?
+    No, because they are anonymized mathematical projections.
+16. Is there a Time column in the 2023 dataset?
+    No, only V1 through V28 and Amount are present.
+17. Were there any missing values?
+    No, data auditing confirmed 0 missing values across all rows.
+18. Were there any duplicates?
+    Exactly 1 duplicate row was identified and audited.
+19. Why split the dataset into train and test sets?
+    To evaluate generalizability on unseen data and prevent overfitting.
+20. What split ratio was used?
+    80% Training (454,904) and 20% Testing (113,726).
+21. Why use stratify=y?
+    To guarantee identical 50/50 class balance in both partitions.
+22. Why set random_state=42?
+    To ensure reproducible train-test splits.
+23. Why is feature scaling necessary for SVM?
+    SVM relies on distance calculations; unscaled features with large ranges (like Amount) would dominate the distance metric.
+24. What scaler was used?
+    StandardScaler (mean=0, std=1).
+25. What is data leakage?
+    Inadvertently using test set information during model training or preprocessing.
+26. How did you prevent data leakage during scaling?
+    By fitting the scaler strictly on the training set (fit_transform) and using transform on test data.
+27. Did you apply undersampling or SMOTE?
+    No, because the 2023 dataset is already balanced.
+28. What is a Support Vector Machine?
+    A supervised learning algorithm that finds an optimal hyperplane maximizing the margin between classes.
+29. What is a hyperplane?
+    An (n-1)-dimensional flat decision boundary separating an n-dimensional space (w^T x + b = 0).
+30. What is the margin in SVM?
+    The geometric distance between the decision boundary and the nearest data points (2 / ||w||).
+31. Why does SVM maximize the margin?
+    A wider margin provides theoretical guarantees against overfitting.
+32. What are support vectors?
+    The critical training instances lying on the margin boundaries that define the hyperplane.
+33. If non-support vectors are removed, what happens?
+    The hyperplane remains identical.
+34. What is a kernel in SVM?
+    A function that computes inner products in a higher-dimensional space without evaluating coordinates explicitly (Kernel Trick).
+35. What kernels did you implement?
+    Linear kernel and Radial Basis Function (RBF) kernel.
+36. How does the Linear kernel work?
+    Computes direct dot products x^T x', creating a flat decision boundary in 29 dimensions.
+37. How does the RBF kernel work?
+    Computes Gaussian radial distance exp(-gamma * ||x - x'||^2), mapping points into infinite-dimensional space.
+38. What does parameter C do in SVM?
+    Regularization parameter balancing margin width against training classification errors.
+39. What does gamma do in RBF SVM?
+    Defines the influence radius of individual support vectors.
+40. What value of gamma was used?
+    gamma='scale' (1 / (n_features * Var(X))).
+41. What does model.predict() return?
+    Discrete predicted class labels (0 or 1).
+42. What does model.decision_function() return?
+    Raw continuous signed distance to the separating hyperplane.
+43. Is the decision score a probability?
+    No. It is an unbounded geometric distance score, not a probability.
+44. What is a Confusion Matrix?
+    A table showing True Negatives, False Positives, False Negatives, and True Positives.
+45. What is a False Positive in fraud detection?
+    A legitimate transaction incorrectly flagged as fraud (false alarm).
+46. What is a False Negative in fraud detection?
+    A fraudulent transaction missed by the model.
+47. Which error is more costly in banking?
+    False Negatives, because undetected fraud leads directly to financial loss.
+48. What is Recall?
+    The proportion of actual fraud transactions successfully caught (TP / (TP + FN)).
+49. What is Precision?
+    The proportion of flagged transactions that were truly fraudulent (TP / (TP + FP)).
+50. What is the F1-Score?
+    The harmonic mean of Precision and Recall.
+
+
+================================================================================
+SECTION 21 — 20 TRICKY PROFESSOR QUESTIONS & ANSWERS
+================================================================================
+
+1. Why choose SVM over Logistic Regression or Random Forest?
+   SVM is a core algorithm for studying convex optimization and maximum-margin theory. It is effective in moderately high-dimensional spaces (29 continuous numerical features) where margin maximization provides strong generalization guarantees.
+2. Why did RBF SVM achieve higher accuracy than Linear SVM?
+   Because the boundary separating fraud from legitimate transactions is non-linear. The Linear SVM is constrained to a flat hyperplane, whereas RBF constructs non-linear Gaussian decision boundaries.
+3. Why did RBF SVM train in 2.9 minutes while Linear SVM took 20.4 minutes?
+   In LIBSVM's Sequential Minimal Optimization (SMO) solver, the RBF kernel easily separates the balanced clusters in its transformed space with fewer iterations. Linear SVM struggled to find a flat planar separator in 29 dimensions, requiring more active-set iterations.
+4. What happens if you scale data before train-test split?
+   Data leakage occurs: test set statistics (mean and variance) leak into the training process.
+5. Why not scale only Amount since V1-V28 are PCA components?
+   Empirical standard deviations of V1-V28 vary slightly across samples. Applying StandardScaler to all 29 features ensures equal contribution to the distance metric.
+6. Difference between C=0.01 and C=100?
+   Small C tolerates more margin violations for a wider margin (underfitting risk). Large C penalizes violations heavily, forcing a narrower margin (overfitting risk). We used C=1.0 as a balanced default.
+7. Mathematical meaning of the decision score?
+   The signed orthogonal Euclidean distance from the transaction point to the separating hyperplane: f(x) = w^T phi(x) + b.
+8. How does the Streamlit app know the transaction Amount if it was scaled?
+   It uses the saved scaler.joblib to call inverse_transform, reversing z-score standardization (x = z * sigma + mu) to retrieve the original monetary amount.
+9. Why specify cache_size=1000?
+   Allocates 1,000 MB of RAM to cache kernel evaluations in the SMO optimization loop, speeding up convergence.
+10. How do you know the model didn't memorize training data?
+    Evaluated on an untouched test set of 113,726 transactions that was held out before training. RBF SVM achieved 99.71% accuracy on this unseen test data.
+11. Why use Stratified sampling?
+    Guarantees that both training and test sets have identical 50/50 class balance.
+12. Geometric interpretation of a Support Vector?
+    A training instance lying on the margin boundary (w^T phi(x) + b = +/- 1) or violating the margin.
+13. Is Accuracy misleading in your project?
+    In imbalanced datasets it is, but here exactly 50% is fraud and 50% is legitimate, so accuracy is a valid high-level metric.
+14. Why didn't you use class_weight='balanced'?
+    Because the dataset is already 50/50 balanced, so the calculated weights would both be 1.0, making the parameter redundant.
+15. What if a new transaction has an Amount larger than any training amount?
+    StandardScaler scales it using the training mean and standard deviation, and SVM projects it along the normal vector w.
+16. Why drop id?
+    It is an arbitrary row index with no causal or statistical relationship to fraud.
+17. Can SVM handle missing values natively?
+    No. Missing coordinates prevent distance calculations. The dataset has 0 missing values.
+18. How does Streamlit demonstrate correct predictions and misclassifications?
+    By sampling real transactions from the test set where the model's prediction matches ground truth or differs from ground truth.
+19. Difference between ROC-AUC and PR-AUC?
+    ROC-AUC plots TPR vs FPR (which includes TN). PR-AUC plots Precision vs Recall and focuses directly on the minority/positive class trade-off.
+20. Why serialize using joblib instead of pickle?
+    joblib is optimized for serializing large NumPy arrays and Scikit-Learn estimators efficiently.
+
+
+================================================================================
+SECTION 22 — LIMITATIONS & FUTURE WORK
+================================================================================
+
+22.1 Current Implementation Limitations:
+1. No Temporal Features: Dataset contains no transaction timestamps for velocity checking.
+2. Batch Training Architecture: Models are trained offline; no real-time streaming updates.
+3. Anonymized Feature Interpretability: PCA components prevent business-level rule explanations.
+
+22.2 Future Work:
+1. Real-Time Streaming Pipeline: Integrate Apache Kafka for incoming streaming transaction evaluation.
+2. Model Explainability: Apply SHAP (SHapley Additive exPlanations) to interpret feature contributions.
+3. Ensemble Comparison: Benchmark SVM against XGBoost and LightGBM.
+
+
+================================================================================
+SECTION 23 — ONE-MINUTE PROJECT EXPLANATION (VIVA SCRIPT)
+================================================================================
+
+"Good morning, Professor. My project is Credit Card Fraud Detection using Support Vector Machines with Data Preprocessing.
+
+We formulated fraud detection as a supervised binary classification problem to distinguish legitimate card transactions from unauthorized fraud. We used the Credit Card Fraud Detection Dataset 2023, which contains 568,630 transactions with a balanced 50/50 class distribution across 29 numerical features: V1 to V28 from PCA, and transaction Amount.
+
+Our preprocessing pipeline drops the non-informative ID column, performs an 80/20 stratified split, and applies StandardScaler fitted strictly on the training set to prevent data leakage. We trained two SVM models: a Linear SVM and an RBF SVM.
+
+On our untouched test set of 113,726 transactions, the RBF SVM achieved superior performance with 99.71% accuracy, 99.79% recall, and caught 56,741 out of 56,863 frauds while producing only 210 false alarms. The Linear SVM achieved 96.60% accuracy.
+
+Finally, we developed an interactive Streamlit web application that demonstrates real-time inference on actual test transactions, displays continuous decision scores, and visualizes the internal stages of the ML pipeline."
+
+
+================================================================================
+SECTION 24 — FIVE-MINUTE PROJECT DEMONSTRATION SCRIPT
+================================================================================
+
+[Minute 1: Introduction & Home Page]
+"Welcome, Professor. This is our Machine Learning Laboratory mini project: Credit Card Fraud Detection using Support Vector Machines.
+(Navigate to 🏠 Home)
+Here on the Home page, you can see our overall workflow. Our dataset consists of 568,630 transactions from the 2023 Kaggle benchmark. The data is balanced with 50% legitimate and 50% fraudulent records. The pipeline consists of five stages: data loading and verification, feature standardization, stratified train/test splitting, SVM training, and dynamic test evaluation. We trained two models: Linear SVM and RBF SVM."
+
+[Minute 2: Fraud Detection Page & Demo Mode]
+(Navigate to 🔍 Fraud Detection)
+"Now let us examine the core demonstration interface. This page allows us to feed real transactions from our held-out test set into the trained SVM models.
+To demonstrate the model live, we have three test-set sampling buttons: 'Random Legitimate Transaction', 'Random Fraud Transaction', and 'Random Transaction'.
+Let's click [ 🔴 Random Fraud Transaction ]. The system randomly selects an authentic fraudulent transaction from the test set. Notice that the transaction details show its index and original monetary amount. Now I click [ ⚡ Analyze Transaction ]."
+
+[Minute 3: Analyzing the Prediction & Decision Score]
+"Here is the live inference result. The transaction passed through our 6-stage ML pipeline: Input -> Feature Extraction -> StandardScaler -> SVM Kernel -> Decision Score -> Prediction.
+The model outputs a prominent red alert: '⚠ FRAUDULENT TRANSACTION DETECTED'. The verification indicator confirms this is a True Positive (Correct Prediction). Notice the Decision Score: it is positive, indicating that the feature vector lies inside the fraud half-space of the decision boundary. We explicitly note that this is a signed geometric distance, not a probability.
+Now let's click [ 🟢 Random Legitimate Transaction ] and analyze it. The result switches to a green card: '✓ LEGITIMATE TRANSACTION', with a negative decision score, confirming a True Negative."
+
+[Minute 4: Model Comparison Page]
+(Navigate to ⚖️ Model Comparison)
+"On the Model Comparison page, we benchmark the Linear SVM against the RBF SVM across all 113,726 untouched test transactions.
+As shown in our metrics cards:
+- Linear SVM achieved 96.60% accuracy, 98.02% precision, and 95.12% recall.
+- RBF SVM achieved 99.71% accuracy, 99.63% precision, and 99.79% recall.
+Looking at the confusion matrices: Linear SVM missed 2,775 frauds, whereas RBF SVM missed only 122 frauds out of 56,863. Furthermore, RBF SVM reduced false alarms from 1,095 down to 210. The ROC-AUC of the RBF model is 0.9998, demonstrating strong discriminative ability."
+
+[Minute 5: Data Analysis, Methodology & Conclusion]
+(Navigate to 📊 Data Analysis & 📖 Methodology)
+"Finally, our Data Analysis page provides a look at the feature distributions. We can see the class balance bar chart and amount distributions. The PCA Feature Explorer allows us to select any component, such as V14, and observe how its distribution separates fraudulent from legitimate transactions.
+In conclusion, the laboratory project demonstrates that non-linear RBF Support Vector Machines can effectively identify credit card fraud when combined with proper feature standardization and experimental hygiene. Thank you, Professor. I am ready for questions."
+
+
+================================================================================
+SECTION 25 — "EXPLAIN THIS CODE TO ME" REFERENCE
+================================================================================
+
+Code Block 1: Stratified Train-Test Split
+```python
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+```
+- What it does: Splits 568,630 transactions into 80% train (454,904) and 20% test (113,726).
+- Why needed: Validates model on unseen data.
+- Viva Explanation: "stratify=y preserves the 50/50 balance in both sets, and random_state=42 ensures reproducibility."
+
+Code Block 2: Data-Leakage-Free Feature Scaling
+```python
+scaler = StandardScaler()
+X_train_scaled = pd.DataFrame(scaler.fit_transform(X_train), columns=X_train.columns, index=X_train.index)
+X_test_scaled = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns, index=X_test.index)
+```
+- What it does: Standardizes features to mean=0 and unit variance (z = (x - mu) / sigma).
+- Why needed: Prevents Amount from dominating distance calculations in the SVM kernel.
+- Viva Explanation: "We fit the scaler strictly on X_train using fit_transform and only transform X_test, preventing data leakage."
+
+Code Block 3: Model Fitting
+```python
+model = SVC(kernel="rbf", C=1.0, gamma="scale", cache_size=1000)
+model.fit(X_train_scaled, y_train)
+```
+- What it does: Solves convex quadratic optimization to determine support vectors and decision boundary.
+- Why needed: Learns the hyperplane that maximizes class separation margin.
+- Viva Explanation: "kernel='rbf' captures non-linear relationships, C=1.0 is the regularization penalty, gamma='scale' sets Gaussian spread, and cache_size=1000 allocates 1 GB RAM for kernel calculations."
+
+Code Block 4: Generating Predictions and Decision Scores
+```python
+y_pred = model.predict(X_test)
+y_scores = model.decision_function(X_test)
+```
+- What it does: predict outputs binary predictions (0 or 1); decision_function outputs continuous distance scores.
+- Why needed: Discrete labels compute accuracy/precision/recall; continuous scores compute ROC-AUC and PR-AUC.
+- Viva Explanation: "predict applies a threshold of zero to decision_function, which represents the Euclidean distance from the point to the hyperplane."
+
+
+================================================================================
+SECTION 26 — QUICK REVISION SHEET
+================================================================================
+
+Project Title:       Credit Card Fraud Detection using SVM Classification
+Dataset Name:        Credit Card Fraud Detection Dataset 2023
+Dataset Source:      Kaggle (nelgiriyewithana/credit-card-fraud-detection-dataset-2023)
+Dataset Size:        568,630 rows x 31 columns
+Input Features:      29 numerical features (V1 to V28, and Amount)
+Target Variable:     Class (0 = Legitimate, 1 = Fraud)
+Class Proportions:   50.0% Legitimate (284,315) vs 50.0% Fraud (284,315)
+Train/Test Split:    80% Train (454,904) / 20% Test (113,726), Stratified, random_state=42
+Scaling Technique:   StandardScaler (Mean = 0, Std = 1), fitted strictly on training set
+Models Evaluated:    1. Linear SVM (SVC(kernel='linear'))
+                     2. RBF SVM (SVC(kernel='rbf', C=1.0, gamma='scale'))
+Evaluation Metrics:  Accuracy, Precision, Recall, F1-Score, ROC-AUC, PR-AUC, Confusion Matrix
+Linear SVM Results:  Acc: 96.60% | Prec: 98.02% | Rec: 95.12% | F1: 0.9655 | ROC-AUC: 0.9931
+RBF SVM Results:     Acc: 99.71% | Prec: 99.63% | Rec: 99.79% | F1: 0.9971 | ROC-AUC: 0.9998
+UI Framework:        Streamlit (app.py, 5 pages: Home, Fraud Detection, Comparison, Analysis, Method)
+Model Persistence:   joblib (models/linear_svm.joblib, rbf_svm.joblib, scaler.joblib, results.joblib)
+
+One-Line Definitions of Key Terms:
+- Supervised Learning: Training an algorithm on labeled input-output pairs.
+- Binary Classification: Categorizing data points into one of two discrete classes.
+- Hyperplane: An (n-1)-dimensional flat decision boundary separating an n-dimensional feature space.
+- Margin: Geometric distance between the decision boundary and nearest data points.
+- Support Vectors: Critical training points lying on margin boundaries that define the hyperplane.
+- Kernel Trick: Computing inner products in higher-dimensional space without evaluating coordinates explicitly.
+- RBF Kernel: Gaussian kernel function mapping inputs into infinite-dimensional space to form non-linear boundaries.
+- Data Leakage: Inadvertently sharing test set information with the training process.
+- Precision: Proportion of flagged transactions that were truly fraudulent (TP / (TP + FP)).
+- Recall: Proportion of actual fraudulent transactions successfully caught (TP / (TP + FN)).
+- Decision Score: Signed orthogonal distance from a feature point to the SVM decision hyperplane.
+
+
+================================================================================
+CURRENT PROJECT VERIFICATION
+================================================================================
+Dataset verified:                     YES (creditcard_2023.csv, 568,630 rows, balanced)
+Preprocessing verified:               YES (Drop 'id', Stratified 80/20, StandardScaler)
+Linear SVM verified:                  YES (SVC(kernel='linear'), trained & evaluated)
+RBF SVM verified:                     YES (SVC(kernel='rbf', C=1.0, gamma='scale'))
+Prediction flow verified:             YES (Live inference via model.predict & decision_function)
+Evaluation verified:                  YES (Dynamically evaluated on 113,726 test set rows)
+Streamlit pages verified:             YES (5 active pages: Home, Detection, Comparison, Analysis, Method)
+Metrics generated dynamically:        YES (All metrics extracted from results.joblib)
+Hard-coded ML results found:          NO  (Zero hardcoded predictions, scores, or metrics)
+================================================================================
